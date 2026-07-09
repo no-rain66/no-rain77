@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>🌾 甘蔗地智慧农业云端作业系统 - 端云协同地面站</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script type="text/javascript">
+        window._AMapSecurityConfig = { securityJsCode: '087ca474413f84ffe8fb650abbeb6720' } 
+    </script>
+    <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key="></script> 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #060b14 0%, #0d1527 100%);
+            --card-bg: rgba(17, 24, 39, 0.75);
+            --card-hover: rgba(22, 32, 54, 0.9);
+            --border: rgba(31, 41, 55, 0.6);
+            --border-glow: rgba(16, 185, 129, 0.3);
+            --primary: #10b981; 
+            --primary-gradient: linear-gradient(90deg, #059669 0%, #10b981 100%);
+            --primary-glow: rgba(16, 185, 129, 0.25);
+            --text-main: #f3f4f6; 
+            --text-gray: #9ca3af;
+            --danger: #ef4444; 
+            --success: #10b981; 
+            --warning: #f59e0b; 
+            --blue: #3b82f6;
+            --blue-gradient: linear-gradient(90deg, #1d4ed8 0%, #3b82f6 100%);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Inter', -apple-system, system-ui, sans-serif; 
+            background: var(--bg-gradient); 
+            color: var(--text-main); 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+        
+        .top-nav { 
+            height: 55px; 
+            background: rgba(17, 24, 39, 0.85); 
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border); 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 0 24px; 
+            z-index: 100;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+        .logo { 
+            font-size: 15px; 
+            font-weight: 700; 
+            background: linear-gradient(90deg, #34d399, #60a5fa); 
+            -webkit-background-clip: text; 
+            background-clip: text;
+            -webkit-text-fill-color: transparent; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        
+        .nav-tabs { display: flex; gap: 10px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
+        .tab-btn { padding: 6px 18px; color: var(--text-gray); border: none; background: transparent; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.3s ease; }
+        .tab-btn:hover { color: #ffffff; background: rgba(255,255,255,0.02); }
+        .tab-btn.active { background: var(--primary-gradient); color: white; box-shadow: 0 0 15px var(--primary-glow); }
+        
+        .status-pill { 
+            background: rgba(255,255,255,0.02); 
+            padding: 5px 16px; 
+            border-radius: 30px; 
+            font-size: 12px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: flex-end;
+            gap: 12px; 
+            border: 1px solid var(--border); 
+            width: 380px; 
+            min-width: 380px;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); transition: all 0.3s ease; }
+        .dot.online { background: var(--success); box-shadow: 0 0 12px var(--success); }
+
+        .tab-content { flex: 1; height: calc(100vh - 55px); display: none; padding: 16px; gap: 16px; overflow: hidden; }
+        .tab-content.active { display: grid; }
+        
+        #page-dashboard { grid-template-columns: 1.2fr 0.8fr; }
+        #page-control { grid-template-columns: minmax(0, 1fr) 430px !important; grid-template-rows: minmax(0, 1fr); gap: 12px !important; padding: 12px !important; align-items: stretch; min-height: 0; overflow: hidden; } 
+
+        .panel-flex-dashboard { display: flex; flex-direction: column; gap: 16px; height: 100%; min-height: 0; }
+        
+        .dashboard-card { 
+            background: var(--card-bg); 
+            border-radius: 16px; 
+            border: 1px solid var(--border); 
+            padding: 18px; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            backdrop-filter: blur(10px);
+            transition: border-color 0.3s, box-shadow 0.3s;
+            position: relative;
+        }
+        .dashboard-card:hover {
+            border-color: rgba(16, 185, 129, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        }
+        
+        .card-header { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            margin-bottom: 14px; 
+            font-size: 13px; 
+            font-weight: 700; 
+            color: #ffffff; 
+            border-bottom: 1px solid rgba(255,255,255,0.05); 
+            padding-bottom: 10px; 
+            flex-shrink: 0; 
+        }
+        .card-header i { color: var(--primary); margin-right: 6px; }
+
+        #map-container { flex: 1; border-radius: 12px; background: #0c101b; border: 1px solid var(--border); min-height: 0; width: 100%; height: 100%; }
+
+        .panel-flex-control { display: grid; grid-template-rows: minmax(0, 1fr) 220px; gap: 12px; height: 100%; min-height: 0; }
+        .control-card { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border); padding: 14px; display: flex; flex-direction: column; overflow: hidden; backdrop-filter: blur(10px); }
+
+        /* ===== 2026-07 UI补丁：修复白色按钮 + 紧凑化控制中心布局 ===== */
+        button { font-family: inherit; user-select: none; }
+        button:focus-visible { outline: 2px solid rgba(52, 211, 153, 0.75); outline-offset: 2px; }
+
+        .btn-task-master {
+            width: 100%; height: 100%; border: 0; border-radius: 14px; color: #ffffff;
+            font-size: 12.5px; font-weight: 900; letter-spacing: .2px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.28); transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
+        }
+        .btn-task-master:hover { transform: translateY(-1px); filter: brightness(1.06); }
+        .btn-task-master:active { transform: translateY(0); filter: brightness(.96); }
+        .btn-task-master.task-idle { background: linear-gradient(135deg, #047857 0%, #10b981 58%, #22c55e 100%); box-shadow: 0 12px 26px rgba(16,185,129,.22); }
+        .btn-task-master.task-running { background: linear-gradient(135deg, #991b1b 0%, #ef4444 62%, #f97316 100%); box-shadow: 0 12px 26px rgba(239,68,68,.22); }
+
+        .hardware-control-panel {
+            min-height: 0; border-radius: 14px; padding: 8px !important;
+            background: linear-gradient(180deg, rgba(15,23,42,.95), rgba(8,15,28,.92));
+            border: 1px solid rgba(52,211,153,.12); box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+        }
+        .panel-title { font-size: 11px; color: #d1fae5; font-weight: 900; display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+        .panel-title i { color: #34d399; }
+        .hardware-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+        .hardware-grid button {
+            min-width: 0; background: linear-gradient(180deg, #1e293b 0%, #111827 100%) !important;
+            color: #dbeafe !important; border: 1px solid rgba(96,165,250,.22) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.035); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            font-size: 10.5px; font-weight: 800; cursor: pointer; transition: all .18s ease;
+        }
+        .hardware-grid button:hover { transform: translateY(-1px); border-color: rgba(96,165,250,.48) !important; background: linear-gradient(180deg, #243653 0%, #15223a 100%) !important; }
+        .hardware-grid button:nth-child(3), .hardware-grid button:nth-child(4) {
+            background: linear-gradient(180deg, #065f46 0%, #064e3b 100%) !important;
+            color: #a7f3d0 !important; border-color: rgba(52,211,153,.28) !important;
+        }
+        .hardware-grid button:nth-child(3):hover, .hardware-grid button:nth-child(4):hover { border-color: rgba(52,211,153,.54) !important; }
+
+        .patrol-actions { margin-top: 9px; }
+        .btn-patrol-start { box-shadow: 0 10px 22px rgba(59,130,246,.20); transition: transform .18s ease, filter .18s ease; }
+        .btn-patrol-start:hover { transform: translateY(-1px); filter: brightness(1.08); }
+
+        .compact-telemetry-strip { flex-wrap: wrap; gap: 7px 14px; font-size: 11px; }
+        .compact-telemetry-strip > div { white-space: nowrap; }
+        .compact-telemetry-strip .pill-status-row { margin: 0; margin-left: auto; }
+
+        .side-quick-btn { justify-content: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 8px 20px rgba(0,0,0,.20); transition: transform .18s ease, border-color .18s ease, background .18s ease; }
+        .side-quick-btn:hover { transform: translateY(-1px); }
+        .side-quick-btn.is-blue { background: linear-gradient(180deg, rgba(30,64,175,.88), rgba(30,41,59,.94)); color: #dbeafe; border-color: rgba(96,165,250,.26); }
+        .side-quick-btn.is-green { background: linear-gradient(180deg, rgba(6,95,70,.88), rgba(15,23,42,.94)); color: #d1fae5; border-color: rgba(52,211,153,.25); }
+        .side-quick-btn.is-red { background: linear-gradient(180deg, rgba(153,27,27,.90), rgba(30,41,59,.96)); color: #fee2e2; border-color: rgba(248,113,113,.28); }
+
+        .action-card, .mission-card, .manual-control-card, .minimap-card-box { box-shadow: 0 14px 34px rgba(0,0,0,.22); }
+        .action-card { min-width: 0; }
+        .mission-card { min-width: 0; }
+        .mission-card-body { align-items: stretch; }
+        .compact-form-grid input, .compact-form-grid select { transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+        .compact-form-grid input:focus, .compact-form-grid select:focus { border-color: rgba(52,211,153,.55); box-shadow: 0 0 0 3px rgba(52,211,153,.08); background: rgba(2,6,23,.78); }
+
+        .clean-manual-card .dir-btn {
+            border-radius: 15px !important; font-size: 12px; font-weight: 900; cursor: pointer;
+            box-shadow: 0 9px 20px rgba(0,0,0,.22); transition: transform .14s ease, filter .14s ease, border-color .14s ease;
+        }
+        .clean-manual-card .dir-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+        .clean-manual-card .dir-btn:active { transform: translateY(0); filter: brightness(.94); }
+        .clean-manual-card .dir-emergency { font-size: 11px; line-height: 1.1; box-shadow: 0 10px 24px rgba(239,68,68,.22) !important; }
+
+        #page-control .minimap-card-box { min-height: 0; }
+        #page-control .minimap-wrapper { box-shadow: inset 0 0 0 1px rgba(52,211,153,.08); }
+
+
+        .control-video-card { padding: 12px !important; display: flex !important; flex-direction: column; }
+        .video-main-content { flex: 1; min-height: 0; display: grid; grid-template-columns: 112px minmax(420px, 1fr) 112px; gap: 12px; align-items: center; justify-content: center; }
+
+        .agri-pattern-side {
+            position: relative;
+            height: min(100%, 400px);
+            min-height: 240px;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(52,211,153,0.12);
+            background:
+                linear-gradient(130deg, transparent 0 18%, rgba(52,211,153,0.09) 18% 20%, transparent 20% 38%, rgba(96,165,250,0.07) 38% 40%, transparent 40% 100%),
+                radial-gradient(circle at 50% 18%, rgba(16,185,129,0.16), transparent 38%),
+                linear-gradient(180deg, rgba(8,25,36,0.96), rgba(7,15,28,0.92));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.035), 0 14px 30px rgba(0,0,0,0.18);
+        }
+        .agri-pattern-side::before, .agri-pattern-side::after {
+            content: ""; position: absolute; inset: 14px auto 14px 24px; width: 2px; border-radius: 999px;
+            background: linear-gradient(180deg, transparent, rgba(52,211,153,.42), transparent); opacity: .75;
+        }
+        .agri-pattern-side::after { left: auto; right: 24px; background: linear-gradient(180deg, transparent, rgba(96,165,250,.30), transparent); }
+
+
+        .video-side-actions { position: absolute; inset: 40px 12px 40px 12px; display: flex; flex-direction: column; justify-content: center; gap: 10px; z-index: 3; }
+        .side-quick-btn {
+            height: 39px; border: 1px solid rgba(96,165,250,0.12); border-radius: 16px; background: rgba(18,26,43,0.92);
+            color: #e2e8f0; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: flex-start; gap: 8px; padding: 0 7px; cursor: pointer;
+        }
+        .side-quick-btn:hover { border-color: rgba(96,165,250,0.22); }
+        .side-quick-btn i { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(52,211,153,0.10); color: #7dd3fc; }
+        .side-quick-btn.is-green i { background: rgba(34,197,94,0.12); color: #86efac; }
+        .side-quick-btn.is-red i { background: rgba(239,68,68,0.12); color: #fca5a5; }
+
+        .pill-status-row { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; }
+        .pill-status-chip { padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,0.86); border: 1px solid rgba(52,211,153,0.10); color: #cbd5e1; font-size: 10.5px; }
+        .pill-status-chip i { color: #34d399; }
+
+        #page-control .video-container {
+            width: 100%; aspect-ratio: 16 / 10 !important; max-height: min(48vh, 430px); min-height: 258px !important; border-radius: 18px; border: 1px solid rgba(148,163,184,0.24);
+            background: radial-gradient(circle at center, #08111f 0%, #030712 72%); position: relative; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.025), 0 18px 42px rgba(0,0,0,0.28);
+        }
+        #page-control #video-feed { width: 100%; height: 100%; object-fit: contain; border-radius: 13px; }
+        .compact-telemetry-strip { margin: 10px 0 0 0 !important; padding: 8px 14px !important; border-radius: 10px; background: rgba(20,29,48,0.92); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .compact-telemetry-strip b { color: #34d399; margin-left: 3px; font-family: monospace; font-size: 12px; }
+
+        .bottom-control-grid { display: grid; grid-template-columns: minmax(214px, 0.34fr) minmax(0, 0.66fr); gap: 12px; min-height: 0; }
+        .action-card, .mission-card { padding: 10px 12px !important; }
+        .action-card { display: grid !important; grid-template-rows: 38px 1fr 34px; gap: 8px; }
+        .action-card .hardware-control-panel { padding: 6px 8px; }
+        .action-card .hardware-grid button { min-height: 30px; padding: 6px 6px; border-radius: 12px; }
+
+        .mission-card-body { display: grid; grid-template-columns: minmax(0, 0.50fr) minmax(0, 0.50fr); gap: 12px; height: 100%; }
+        .mini-section-title { font-size: 11px; font-weight: 800; color: #d1fae5; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+        .compact-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 9px; }
+        .compact-form-grid label { display: flex; flex-direction: column; gap: 3px; color: var(--text-gray); font-size: 10.5px; }
+        .compact-form-grid input, .compact-form-grid select {
+            height: 28px; padding: 3px 7px; background: rgba(0,0,0,0.50); border: 1px solid rgba(31,41,55,0.85); border-radius: 7px; color: #fff; font-size: 11px; outline: none;
+        }
+
+        .full-span { grid-column: span 2; }
+        .btn-hw-orange { height: 30px !important; padding: 0 !important; background: linear-gradient(180deg, #7c2d12, #9a3412); color: #fdba74; border-radius: 6px; border: 1px solid #b45309; font-weight: bold; cursor: pointer; }
+        .btn-patrol-start { background: linear-gradient(90deg, #1d4ed8, #3b82f6); width: 100%; grid-column: span 2; height: 32px; border: 0; border-radius: 8px; color: #fff; font-size: 11.5px; font-weight: 800; cursor: pointer; }
+
+        .route-status-strip { margin-top: 8px; padding: 7px 9px; border-radius: 8px; color: #cbd5e1; background: rgba(15,23,42,0.70); border: 1px solid rgba(255,255,255,0.05); font-size: 10.5px; }
+        .route-status-strip b { color: #34d399; }
+
+        #page-control .control-right-column { display: grid !important; grid-template-rows: max-content 220px; gap: 12px; height: 100%; overflow: hidden; min-height: 0; }
+        #page-control .minimap-card-box { background: rgba(17,24,39,0.90); border-radius: 16px; border: 1px solid rgba(52,211,153,0.11); padding: 0 !important; display: flex; flex-direction: column; overflow: hidden; width: 100%; flex-shrink: 0; }
+        #page-control .minimap-card-box .card-header { padding: 12px 14px 8px 14px !important; }
+        #page-control .minimap-wrapper { width: 100%; aspect-ratio: 1 / 1 !important; height: auto !important; border-radius: 0 0 14px 14px; background: #070b12; overflow: hidden; position: relative; }
+        #page-control canvas#map { display: block; cursor: grab; width: 100%; height: 100%; }
+        #page-control canvas#map:active { cursor: grabbing; }
+
+        .manual-control-card.clean-manual-card { padding: 10px 14px 12px !important; min-height: 220px; flex-shrink: 0; }
+        .manual-center-wrap { flex: 1; display: flex; align-items: center; justify-content: center; }
+        .clean-manual-card .direction-control-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 42px 54px 42px; gap: 8px; max-width: 238px; width: 100%; min-height: 154px; }
+        .clean-manual-card .dir-btn { background: linear-gradient(180deg, #2b3550, #202a40) !important; color: #ffffff !important; border: 1px solid rgba(148,163,184,0.22) !important; }
+        .clean-manual-card .dir-btn:hover { background: linear-gradient(180deg, #33415e, #25324b) !important; border-color: rgba(59,130,246,0.48) !important; }
+        .clean-manual-card .dir-emergency { background: radial-gradient(circle, #ef4444, #b91c1c 72%) !important; color: #ffffff !important; border: 1px solid rgba(248,113,113,0.52) !important; }
+
+        .chat-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; }
+        .bubble { max-width: 85%; padding: 10px 14px; border-radius: 14px; font-size: 12px; line-height: 1.6; word-wrap: break-word; }
+        .bubble.me { background: var(--primary-gradient); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .bubble.ai { background: rgba(255,255,255,0.04); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid var(--border); }
+
+        .input-row { display: flex; gap: 10px; flex-shrink: 0; align-items: center; width: 100%; }
+        .input-row input[type="text"] { flex: 1; background: rgba(0,0,0,0.4); border: 1px solid var(--border); height: 36px; padding: 0 14px; border-radius: 8px; color: white; font-size: 12px; }
+        
+        button.btn-primary { padding: 0 16px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; height: 34px; }
+        button.ghost { padding: 4px 10px; background: rgba(255,255,255,0.04); color: var(--text-main); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 11px; }
+        button.ghost:hover { background: rgba(255,255,255,0.08); }
+
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
+        .modal-box { width: min(90vw, 750px); aspect-ratio: 1/1; background: #070c16; border: 1px solid #10b981; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .modal-body { flex: 1; background: #040810; position: relative; cursor: grab; }
+        .modal-body:active { cursor: grabbing; }
+        #offlineMapCanvas { width: 100%; height: 100%; display: block; }
+
+        @media (max-width: 1360px) {
+            #page-control { grid-template-columns: minmax(0, 1fr) 398px !important; }
+            .agri-pattern-side { display: none; }
+            .video-main-content { grid-template-columns: 1fr; }
+        }
+
+        @media (max-height: 820px) {
+            .panel-flex-control { grid-template-rows: minmax(0, 1fr) 206px; }
+            #page-control .control-right-column { grid-template-rows: max-content 204px; }
+            .manual-control-card.clean-manual-card { min-height: 204px; }
+            #page-control .video-container { min-height: 230px !important; max-height: min(46vh, 360px); }
+            .action-card, .mission-card { padding: 9px 10px !important; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <nav class="top-nav">
+        <div class="logo"><i class="fas fa-seedling"></i> 基于瑞芯微 RK3588 的甘蔗地智慧农业云端作业系统</div>
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchPage('dashboard')"><i class="fas fa-chart-network"></i> 全景控制大盘</button>
+            <button class="tab-btn" onclick="switchPage('control')"><i class="fas fa-crosshairs"></i> 智算视觉建图控制中心</button>
+        </div>
+        <div class="status-pill">
+            <div id="conn-dot" class="dot"></div>
+            <span id="conn-text" style="color:var(--danger); font-weight:700; font-size:11px;">DISCONNECTED</span>
+            <span style="color: var(--border);">|</span>
+            <span id="voltage-info" style="color: #60a5fa; font-weight: bold;"><i class="fas fa-battery-three-quarters"></i> --V</span>
+            <span style="color: var(--border);">|</span>
+            <span id="ip-info" style="color:var(--text-gray); font-family:monospace;">IP: --</span>
+        </div>
+    </nav>
+
+    <main class="tab-content active" id="page-dashboard">
+        <div class="dashboard-card" style="padding: 0; display: flex; flex-direction: column;">
+            <div class="card-header" style="margin: 12px 18px 0 18px;"><span><i class="fas fa-map-marked-alt"></i> 📍 地块全景地图</span></div>
+            <div id="map-container" style="margin: 0 18px 18px 18px;"></div>
+            <div style="position: absolute; top: 58px; left: 30px; z-index: 10; background: rgba(11, 17, 34, 0.9); border: 1px solid var(--primary); border-radius: 10px; padding: 12px; color: white; backdrop-filter: blur(6px); pointer-events: none; max-width: 320px;">
+                <h3 style="color:#34d399; font-size:12px; margin-bottom:4px; font-weight:700;"><i class="fas fa-globe-asia"></i> 数字地块高精实时拓扑中枢</h3>
+                <p style="font-size:11px; color:var(--text-gray); line-height:1.4;" id="loc-addr">中国甘蔗主产示范区</p>
+                <p style="font-size:10px; color:#60a5fa; margin-top:5px; font-weight:600;"><i class="fas fa-shield-check"></i> 地理拓扑原位感知定位系统已就绪</p>
+            </div>
+        </div>
+
+        <div class="panel-flex-dashboard">
+            <div class="dashboard-card" style="height: 240px; flex-shrink: 0;">
+                <div class="card-header"><span><i class="fas fa-history"></i> 历史长势视频与多资产作业成果</span></div>
+                
+                <div class="input-row" style="display: none;">
+                    <div id="path-display" style="flex:1; font-size:11px; color:#34d399; font-weight:600; text-overflow:ellipsis; overflow:hidden; font-family:monospace;">主存路径: 加载中...</div>
+                    <button class="ghost" onclick="changeSavePathPrompt()"><i class="fas fa-edit"></i> 修改路径</button>
+                </div>
+                
+                <div id="history-video-list" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+
+            <div class="dashboard-card" style="height: 180px; flex-shrink: 0;">
+                <div class="card-header"><span><i class="fas fa-analytics"></i> 📊 土壤养分实时监测</span></div>
+                <div style="flex: 1; min-height: 0; position: relative;"><canvas id="soilChart"></canvas></div>
+            </div>
+
+            <div class="dashboard-card" id="pending-section" style="display: none; border-color: var(--primary); max-height: 95px; flex-shrink: 0;">
+                <div class="card-header" style="margin-bottom: 4px;"><span><i class="fas fa-file-search"></i> 待归档报告巡检暂存区</span></div>
+                <div id="pending-list" style="overflow-y: auto; flex: 1;"></div>
+            </div>
+
+            <div class="dashboard-card" style="flex: 1; min-height: 0;">
+                <div class="card-header"><span><i class="fas fa-robot"></i> 🤖 智能农技助手</span></div>
+                <div class="chat-messages" id="chat-content"><div class="bubble ai">您好！我是您的智能农技助手。我可以结合地块实时巡检数据与土壤监测结果，为您提供甘蔗建议。</div></div>
+                <div class="input-row">
+                    <input type="text" id="chat-input" placeholder="💡 请输入您的农技问题..." onkeydown="if(event.keyCode===13) sendChat()">
+                    <button class="btn-primary" onclick="sendChat()"><i class="fas fa-paper-plane"></i> 提问</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <main class="tab-content" id="page-control">
+        <div class="panel-flex-control">
+            <div class="control-card control-video-card">
+                <div class="card-header">
+                    <span><i class="fas fa-video"></i> 📹 实时视频画面</span>
+                    <span id="task-status-tag" style="font-size:11px; color:var(--text-gray); font-weight:bold;"><i class="fas fa-rss-badge"></i> 核心就绪状态：待机</span>
+                </div>
+                <div class="video-main-content">
+                    <div class="agri-pattern-side">
+                        <div class="video-side-actions">
+                            <button class="side-quick-btn is-blue" onclick="sendCmd('CAM_LEFT')"><i class="fas fa-video"></i><span>左视轨</span></button>
+                            <button class="side-quick-btn is-blue" onclick="sendCmd('CAM_RIGHT')"><i class="fas fa-video"></i><span>右视轨</span></button>
+                            <button class="side-quick-btn is-green" onclick="sendCmd('SOIL_LEFT')"><i class="fas fa-flask"></i><span>左土检</span></button>
+                            <button class="side-quick-btn is-green" onclick="sendCmd('SOIL_RIGHT')"><i class="fas fa-flask"></i><span>右土检</span></button>
+                        </div>
+                    </div>
+                    <div class="video-container">
+                        <div id="video-placeholder" style="color:var(--text-gray); font-size:12px; position:absolute; font-weight:600;"><i class="fas fa-spinner fa-spin"></i> 等待画面同步载荷...</div>
+                        <img id="video-feed" src="" alt="">
+                    </div>
+                    <div class="agri-pattern-side">
+                        <div class="video-side-actions">
+                            <button class="side-quick-btn is-green" id="side-spray-switch" onclick="toggleSprayMaster()"><i class="fas fa-droplet"></i><span>喷药开关</span></button>
+                            <button class="side-quick-btn is-red" onclick="sendCmd('CLEAR')"><i class="fas fa-broom"></i><span>清空地图</span></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="compact-telemetry-strip">
+                    <div>坐标轴: X= <b id="car-x">0.00</b> 米, Y= <b id="car-y">0.00</b> 米</div>
+                    <div>航向角: <b id="car-yaw">0.00</b> rad</div>
+                    <div>边缘统计成果: 甘蔗丛: <b id="cnt-cane">0</b> | 田间杂草: <b id="cnt-weed" style="color:#fbbf24;">0</b></div>
+                    <div class="pill-status-row">
+                        <span class="pill-status-chip"><i class="fas fa-seedling"></i> 甘蔗巡检</span>
+                        <span class="pill-status-chip"><i class="fas fa-route"></i> 巡航联动</span>
+                        <span class="pill-status-chip"><i class="fas fa-map"></i> 激光建图</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bottom-control-grid">
+                <div class="control-card action-card">
+                    <button id="btn-task-master" class="btn-task-master task-idle" onclick="handleTaskMasterClick()">
+                        <i class="fas fa-play"></i> 🚀 开始记录巡检
+                    </button>
+                    <div class="hardware-control-panel">
+                        <div class="panel-title"><i class="fas fa-cogs"></i> 🛠️ 外设执行控制</div>
+                        <div class="hardware-grid">
+                            <button onclick="sendCmd('CAM_LEFT')"><i class="fas fa-video"></i> 观测视轨·左</button>
+                            <button onclick="sendCmd('CAM_RIGHT')"><i class="fas fa-video"></i> 观测视轨·右</button>
+                            <button style="background:#064e3b; color:#34d399;" onclick="sendCmd('SOIL_LEFT')"><i class="fas fa-flask"></i> 土壤检测·左</button>
+                            <button style="background:#064e3b; color:#34d399;" onclick="sendCmd('SOIL_RIGHT')"><i class="fas fa-flask"></i> 土壤检测·右</button>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(239,68,68,0.03); padding:4px 8px; border-radius:6px; border:1px dashed rgba(239,68,68,0.2);">
+                        <span style="font-size:11px; color:#f87171; font-weight:700;">靶向喷药伺服总允许</span>
+                        <button id="btn-spray-switch" style="padding:2px 8px; font-size:10px; background:#374151; color:white; border:none; font-weight:bold; border-radius:4px; cursor:pointer;" onclick="toggleSprayMaster()">OFF 关闭</button>
+                    </div>
+                </div>
+
+                <div class="control-card mission-card">
+                    <div class="mission-card-body">
+                        <div>
+                            <div class="mini-section-title"><i class="fas fa-sliders-h"></i> 运动与感知参数</div>
+                            <div class="compact-form-grid">
+                                <input type="hidden" id="inp-speed" value="0.20">
+                                <input type="hidden" id="inp-turn" value="1.2">
+                                <input type="hidden" id="inp-side" value="right">
+                                <label>盲区(米)<input type="number" id="inp-mindist" step="0.05" value="0.15" onchange="uploadParams()"></label>
+                                <label>远界(米)<input type="number" id="inp-maxdist" step="0.5" value="8.0" onchange="uploadParams()"></label>
+                                <label class="full-span">点云显示<select id="inp-show-lidar" onchange="uploadParams()"><option value="true">显示粒子墙</option><option value="false">隐藏图层</option></select></label>
+                                <button class="btn-hw-orange full-span" onclick="sendCmd('RESET_ARM')">🦾 机械臂姿态调平</button>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="mini-section-title"><i class="fas fa-route"></i> 巡航路线配置</div>
+                            <div class="compact-form-grid">
+                                <label>行长(米)<input id="inp-row-length" type="number" step="0.1" value="6.0" onkeydown="if(event.keyCode===13) atomicSync('length')"></label>
+                                <label>行距(米)<input id="inp-row-spacing" type="number" step="0.01" value="0.70" onkeydown="if(event.keyCode===13) atomicSync('spacing')"></label>
+                                <label>总行数<input id="inp-total-rows" type="number" step="1" value="4" onkeydown="if(event.keyCode===13) atomicSync('rows')"></label>
+                                <label>转弯方向<select id="inp-turn-dir" onchange="atomicSync('dir')"><option value="1">右转优先</option><option value="-1">左转优先</option></select></label>
+                            </div>
+                            <div class="patrol-actions">
+                                <button class="btn-patrol-start" onclick="startPatrolWithParams()"><i class="fas fa-person-running"></i> 启动巡航</button>
+                            </div>
+                            <div class="route-status-strip" id="route-status-strip">巡航状态：<b>待机</b></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-right-column">
+            <div class="minimap-card-box">
+                <div class="card-header">
+                    <span><i class="fas fa-map"></i> 🗺️ 实时精细图层</span>
+                    <button class="ghost" style="padding:1px 6px; font-size:10px;" onclick="sendCmd('CLEAR')">重置清空</button>
+                </div>
+                <div class="minimap-wrapper"><canvas id="map"></canvas></div>
+            </div>
+            <div class="control-card manual-control-card clean-manual-card">
+                <div class="card-header"><span><i class="fas fa-gamepad"></i> 🎮 手动控制总线</span></div>
+                <div class="manual-center-wrap">
+                    <div class="direction-control-grid">
+                        <div></div>
+                        <button class="dir-btn dir-up" onmousedown="sendCmd('FORWARD')" onmouseup="sendCmd('STOP')"><i class="fas fa-chevron-up"></i> 前进</button>
+                        <div></div>
+                        <button class="dir-btn dir-left" onmousedown="sendCmd('LEFT')" onmouseup="sendCmd('STOP')"><i class="fas fa-chevron-left"></i> 左转</button>
+                        <button class="dir-btn dir-emergency" onclick="sendCmd('STOP')">紧急停止</button>
+                        <button class="dir-btn dir-right" onmousedown="sendCmd('RIGHT')" onmouseup="sendCmd('STOP')">右转 <i class="fas fa-chevron-right"></i></button>
+                        <div></div>
+                        <button class="dir-btn dir-down" onmousedown="sendCmd('BACKWARD')" onmouseup="sendCmd('STOP')"><i class="fas fa-chevron-down"></i> 后退</button>
+                        <div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="mapModal" onclick="closeMapModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <div class="card-header" style="padding:14px; margin:0; border-bottom:1px solid #1f2937;">
+                <span style="color:#34d399; font-weight:bold;"><i class="fas fa-map-marked-alt"></i> 📈 历史作业特征轨迹地图 (可滚轮缩放/拖拽)</span>
+                <button class="ghost" onclick="closeMapModal()" style="color:var(--danger); border-color:var(--danger)">关闭窗口</button>
+            </div>
+            <div class="modal-body" id="modalCanvasBody">
+                <canvas id="offlineMapCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let amap = null; let soilChartInstance = null; let hasInitializedInputs = false;
+        let currentSprayState = false; let isTaskRunning = false; let latest_data = {};
+        
+        let offsetX = 0; let offsetY = 0; let isDragging = false; let startX, startY;
+        let zoomFactor = 170.0;
+
+        let browserPath = [];
+        let browserLastPoint = null;
+        const BROWSER_PATH_MIN_DIST = 0.005;
+        const BROWSER_PATH_MAX_POINTS = 12000;
+
+        const canvas = document.getElementById("map"); const ctx = canvas.getContext("2d");
+
+        let offlineData = { path: [], markers: [] };
+        let offX = 0, offY = 0, offZoom = 40.0, isOffDragging = false, offStartX, offStartY;
+        const offCanvas = document.getElementById("offlineMapCanvas");
+        const offCtx = offCanvas.getContext("2d");
+
+        function resizeCanvasToFit() {
+            const wrapper = canvas.parentElement; 
+            if (wrapper) {
+                const wrapperWidth = wrapper.clientWidth;
+                if (wrapperWidth <= 0) return;
+                const side = Math.floor(wrapperWidth);
+                if (canvas.width !== side || canvas.height !== side) {
+                    canvas.width = side; canvas.height = side;
+                }
+            }
+        }
+
+        function switchPage(pageId) {
+            $('.tab-btn').removeClass('active'); $('.tab-content').removeClass('active');
+            $(`button[onclick="switchPage('${pageId}')"]`).addClass('active'); $(`#page-${pageId}`).addClass('active');
+            if (pageId === 'control') { 
+                requestAnimationFrame(() => {
+                    resizeCanvasToFit();
+                    setTimeout(resizeCanvasToFit, 100);
+                });
+            } else if (pageId === 'dashboard') {
+                if(!amap) { initMap(); }
+            }
+        }
+
+        function initMap() { 
+            const container = document.getElementById('map-container');
+            if (typeof AMap !== 'undefined' && container && container.clientWidth > 0) { 
+                amap = new AMap.Map('map-container', { zoom: 4, center: [104.5, 35.5], theme: 'dark' }); 
+            } 
+        }
+
+        function drawSmartCar(ctx, yaw) {
+            ctx.save(); ctx.rotate(-yaw - Math.PI/2);
+            ctx.fillStyle = "#1e40af"; ctx.strokeStyle = "#60a5fa"; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.roundRect(-9, -13, 18, 26, 4); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#10b981"; ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(-3, -13); ctx.lineTo(3, -13); ctx.closePath(); ctx.fill();
+            ctx.restore();
+        }
+
+        function appendBrowserPath(x, y) {
+            x = Number(x); y = Number(y);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+            x = Math.round(x * 10000) / 10000; y = Math.round(y * 10000) / 10000;
+
+            if (!browserPath.length) {
+                browserPath.push([x, y]); browserLastPoint = [x, y]; return;
+            }
+            if (!browserLastPoint) {
+                browserLastPoint = browserPath[browserPath.length - 1];
+            }
+            const dx = x - browserLastPoint[0]; const dy = y - browserLastPoint[1];
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist >= 3.0) {
+                browserPath.push(null); browserPath.push([x, y]); browserLastPoint = [x, y];
+            } else if (dist >= BROWSER_PATH_MIN_DIST) {
+                browserPath.push([x, y]); browserLastPoint = [x, y];
+            }
+            if (browserPath.length > BROWSER_PATH_MAX_POINTS) {
+                browserPath = browserPath.slice(-BROWSER_PATH_MAX_POINTS);
+            }
+        }
+
+        function getBestPathForDraw(latest) {
+            const serverPath = Array.isArray(latest.recorded_path) ? latest.recorded_path : [];
+            const serverCount = serverPath.filter(p => Array.isArray(p) && p.length >= 2).length;
+            const browserCount = browserPath.filter(p => Array.isArray(p) && p.length >= 2).length;
+            if (browserCount > serverCount) {
+                return { path: browserPath, source: "BROWSER", count: browserCount };
+            }
+            return { path: serverPath, source: "SERVER", count: serverCount };
+        }
+
+        function drawLaserMap(latest) {
+            const w = canvas.width, h = canvas.height; if (w === 0 || h === 0) return;
+            const ox = w / 2 + offsetX; const oy = h / 2 + offsetY; ctx.clearRect(0, 0, w, h);
+            
+            ctx.strokeStyle = "#131b2e"; ctx.lineWidth = 1; ctx.beginPath();
+            for (let x = ox % zoomFactor; x < w; x += zoomFactor) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+            for (let y = oy % zoomFactor; y < h; y += zoomFactor) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
+            ctx.stroke();
+
+            ctx.save(); ctx.strokeStyle = "rgba(96,165,250,0.55)"; ctx.lineWidth = 1.2; ctx.beginPath();
+            ctx.moveTo(0, oy); ctx.lineTo(w, oy); ctx.moveTo(ox, 0); ctx.lineTo(ox, h); ctx.stroke();
+            ctx.fillStyle = "rgba(147,197,253,0.95)"; ctx.font = "bold 10px monospace";
+            ctx.fillText("X+", Math.min(w - 22, ox + 42), oy - 6); ctx.fillText("Y+", ox + 6, Math.max(12, oy - 42));
+            ctx.fillStyle = "#34d399"; ctx.beginPath(); ctx.arc(ox, oy, 3.5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+
+            if (latest.show_lidar_points && latest.permanent_obstacles) {
+                ctx.fillStyle = "#ef4444";
+                for (const p of latest.permanent_obstacles) { ctx.fillRect(ox + p[0]*zoomFactor - 1.5, oy - p[1]*zoomFactor - 1.5, 3, 3); }
+            }
+
+            const pathPack = getBestPathForDraw(latest); const path = pathPack.path;
+            if (pathPack.count > 1) {
+                ctx.save(); ctx.strokeStyle = "#22c55e"; ctx.lineWidth = 3.4; ctx.lineCap = "round"; ctx.lineJoin = "round";
+                ctx.shadowColor = "rgba(34,197,94,0.45)"; ctx.shadowBlur = 8; ctx.beginPath();
+                let hasStarted = false;
+                for (let i = 0; i < path.length; i++) {
+                    const p = path[i];
+                    if (!Array.isArray(p) || p.length < 2) { hasStarted = false; continue; }
+                    const x = Number(p[0]); const y = Number(p[1]);
+                    if (!Number.isFinite(x) || !Number.isFinite(y)) { hasStarted = false; continue; }
+                    const px = ox + x * zoomFactor; const py = oy - y * zoomFactor;
+                    if (!hasStarted) { ctx.moveTo(px, py); hasStarted = true; } else { ctx.lineTo(px, py); }
+                }
+                ctx.stroke(); ctx.restore();
+
+                const first = path.find(p => Array.isArray(p) && p.length >= 2);
+                if (first) {
+                    ctx.save(); ctx.fillStyle = "#38bdf8"; ctx.beginPath(); ctx.arc(ox + Number(first[0]) * zoomFactor, oy - Number(first[1]) * zoomFactor, 4.5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+                }
+            }
+
+            (latest.semantic_markers || []).forEach(m => {
+                const mx = ox + m[0]*zoomFactor; const my = oy - m[1]*zoomFactor;
+                ctx.save(); ctx.fillStyle = m[2] === 0 ? "#10b981" : "#fbbf24"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(mx, my, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center"; ctx.fillText(m[3], mx, my - 11); ctx.restore();
+            });
+
+            ctx.save(); ctx.translate(ox + (latest.car_world_x||0)*zoomFactor, oy - (latest.car_world_y||0)*zoomFactor);
+            drawSmartCar(ctx, latest.car_yaw || 0); ctx.restore();
+        }
+
+        function handleTaskMasterClick() {
+            const btn = $('#btn-task-master');
+            if (!isTaskRunning) {
+                isTaskRunning = true;
+                btn.removeClass('task-idle').addClass('task-running').html('<i class="fas fa-stop"></i> 停止记录巡检');
+                $('#task-status-tag').html('<span style="color:#10b981;"><i class="fas fa-sync fa-spin"></i> 垄间闭环物理链路感知中...</span>');
+                $.post('/api/gcs/cmd/START');
+            } else {
+                isTaskRunning = false;
+                btn.removeClass('task-running').addClass('task-idle').html('<i class="fas fa-play"></i> 🚀 开始记录巡检');
+                $('#task-status-tag').html('<span style="color:#3b82f6;"><i class="fas fa-file-check"></i> 离线特征地图数据集合已成功固化</span>');
+                $.post('/api/gcs/cmd/STOP_TASK');
+                setTimeout(loadHistoryVideos, 2000); 
+            }
+        }
+
+        function toggleSprayMaster() {
+            currentSprayState = !currentSprayState;
+            const btn = $('#btn-spray-switch'); const sideBtn = $('#side-spray-switch');
+            if(currentSprayState) {
+                btn.css('background','#ef4444').text("ON 开启");
+                sideBtn.find('span').text('喷药已开').end().addClass('is-red').removeClass('is-green');
+                $.post('/api/gcs/cmd/SPRAY_ENABLE_TRUE');
+            } else {
+                btn.css('background','#374151').text("OFF 关闭");
+                sideBtn.find('span').text('喷药开关').end().addClass('is-green').removeClass('is-red');
+                $.post('/api/gcs/cmd/SPRAY_ENABLE_FALSE');
+            }
+        }
+
+        async function fetchLatestSnapshot() {
+            try {
+                const res = await fetch("/api/gcs/latest"); const latest = await res.json() || {}; latest_data = latest;
+                $('#car-x').text(Number(latest.car_world_x || 0).toFixed(2));
+                $('#car-y').text(Number(latest.car_world_y || 0).toFixed(2));
+                $('#car-yaw').text(Number(latest.car_yaw || 0).toFixed(2));
+                $('#voltage-info').html(`<i class="fas fa-battery-three-quarters"></i> ${Number(latest.battery_voltage || 12.0).toFixed(1)}V`);
+                
+                if (!hasInitializedInputs && latest.connected) {
+                    $('#inp-mindist').val(latest.min_dist); $('#inp-maxdist').val(latest.max_dist);
+                    $('#inp-show-lidar').val(latest.show_lidar_points ? "true" : "false");
+                    currentSprayState = latest.spray_master_switch;
+                    if(currentSprayState) { $('#btn-spray-switch').css('background','#ef4444').text("ON 开启"); $('#side-spray-switch').find('span').text('喷药已开').end().addClass('is-red').removeClass('is-green'); }
+                    hasInitializedInputs = true;
+                }
+                if (latest.ai_counts) {
+                    $('#cnt-cane').text(latest.ai_counts[0]);
+                    $('#cnt-weed').text(latest.ai_counts.slice(1).reduce((a, b) => a + b, 0));
+                }
+                appendBrowserPath(latest.car_world_x, latest.car_world_y); drawLaserMap(latest); refreshRouteStatus(latest);
+            } catch(e) {}
+        }
+        setInterval(fetchLatestSnapshot, 200);
+
+        function uploadParams() {
+            const payload = { 
+                speed: parseFloat($('#inp-speed').val() || 0.20), turn_speed: parseFloat($('#inp-turn').val() || 1.2),
+                min_dist: parseFloat($('#inp-mindist').val()), max_dist: parseFloat($('#inp-maxdist').val()),
+                detection_side: $('#inp-side').val() || "right", show_lidar_points: ($('#inp-show-lidar').val() === "true")
+            };
+            $.ajax({ url: '/api/gcs/set-params', method: 'POST', contentType: 'application/json', data: JSON.stringify(payload) });
+        }
+
+        function atomicSync(type) {
+            let url = ''; let val = 0;
+            if (type === 'length') { url = '/api/gcs/update-row-length'; val = parseFloat($('#inp-row-length').val()); }
+            else if (type === 'spacing') { url = '/api/gcs/update-row-spacing'; val = parseFloat($('#inp-row-spacing').val()); }
+            else if (type === 'rows') { url = '/api/gcs/update-total-rows'; val = parseInt($('#inp-total-rows').val()); }
+            else if (type === 'dir') { url = '/api/gcs/update-turn-dir'; val = parseInt($('#inp-turn-dir').val()); }
+            $.ajax({
+                url: url, method: 'POST', contentType: 'application/json', data: JSON.stringify({ value: val }),
+                success: () => { $('#route-status-strip').html('巡航状态：<b>待机</b> ｜ 路线同步：<b style="color:#10b981;">核心数值已发射同步</b>'); }
+            });
+        }
+
+        function startPatrolWithParams() {
+            $.ajax({ url: '/api/gcs/start-patrol', method: 'POST', contentType: 'application/json', data: JSON.stringify({}) });
+        }
+
+        function refreshRouteStatus(latest) {
+            if (!document.getElementById('route-status-strip')) return;
+            const rs = latest.route_status || {}; const running = latest.nav_running || rs.nav_running;
+            const syncText = latest.route_synced ? '<span style="color:#10b981;">已同步</span>' : '就绪';
+            const stateText = rs.auto_patrol_state || (running ? '巡航中' : '待机');
+            $('#route-status-strip').html(`巡航状态：<b>${stateText}</b> ｜ 路线同步：<b>${syncText}</b>`);
+        }
+
+        socket.on('video_frame', (data) => { $('#video-placeholder').hide(); $('#video-feed').attr('src', 'data:image/jpeg;base64,' + data.image); });
+        socket.on('device_connected', (data) => { $('#conn-dot').addClass('online'); $('#conn-text').text('CONNECTED').css('color', 'var(--success)'); $('#ip-info').text(`IP: ${data.ip}`); });
+        socket.on('device_disconnected', () => { $('#conn-dot').removeClass('online'); $('#conn-text').text('DISCONNECTED').css('color', 'var(--danger)'); });
+
+        function sendCmd(cmd) {
+            if (String(cmd).toUpperCase() === "CLEAR" || String(cmd).toUpperCase() === "RESET_MAP" || String(cmd).toUpperCase() === "CLEAR_MAP") {
+                browserPath = []; browserLastPoint = null;
+            } $.post('/api/gcs/cmd/' + cmd); 
+        }
+
+        function loadSoilChart() {
+            $.get('/api/sugarcane/soil-data', (res) => {
+                if (!res.success || !res.data.labels || res.data.labels.length === 0) return;
+                const ctxChart = document.getElementById('soilChart').getContext('2d');
+                if (soilChartInstance) soilChartInstance.destroy();
+                soilChartInstance = new Chart(ctxChart, {
+                    type: 'bar',
+                    data: {
+                        labels: res.data.labels,
+                        datasets: [
+                            { label: '温度(℃)', data: res.data.temp, backgroundColor: '#f87171' },
+                            { label: '湿度(%)', data: res.data.moisture, backgroundColor: '#60a5fa' },
+                            { label: '氮(mg)', data: res.data.nitrogen, backgroundColor: '#34d399' },
+                            { label: '磷(mg)', data: res.data.phosphorus, backgroundColor: '#a78bfa' },
+                            { label: '钾(mg)', data: res.data.potassium, backgroundColor: '#fbbf24' }
+                        ]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: true, labels: { color: '#9ca3af', boxWidth: 6, font: { size: 9 } } } },
+                        scales: { 
+                            x: { ticks: { color: '#9ca3af', font: { size: 8 } }, grid: { display: false } }, 
+                            y: { ticks: { color: '#9ca3af', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.02)' } } 
+                        }
+                    }
+                });
+            });
+        }
+        setInterval(loadSoilChart, 5000);
+
+        function changeSavePathPrompt() {
+            const p = prompt("请输入您想变更的作业数据保存绝对路径：");
+            if(p) {
+                $.ajax({
+                    url: '/api/save-path', method: 'POST', contentType: 'application/json', data: JSON.stringify({path: p}),
+                    success: (res) => { if(res.success){ refreshSavePath(); loadHistoryVideos(); } },
+                    error: (xhr) => { alert("变更路径失败: " + (xhr.responseJSON?.error || "无权限")); }
+                });
+            }
+        }
+        
+        function refreshSavePath() { 
+            $.get('/api/save-path', (res) => { 
+                if(res.success) $('#path-display').text("🔗 主存路径: " + res.path); 
+            }); 
+        }
+        
+        // 🚀 核心重构：前端下拉框文本完美映射为“时间-1”与“时间-2”展示模式
+        function loadHistoryVideos() { 
+            $.get('/api/sugarcane/history-videos', (res) => { 
+                if (!res.success || !res.videos || res.videos.length === 0) {
+                    $('#history-video-list').html('<div style="font-size:11px;color:var(--text-gray);padding:8px;">暂无历史作业资产</div>');
+                    return;
+                } 
+                
+                const groups = {};
+                res.videos.forEach(vid => {
+                    const tag = vid.group_tag || "基础作业资产";
+                    if (!groups[tag]) {
+                        groups[tag] = { videos: [], reports: [], json_maps: [] };
+                    }
+                    const fn = vid.filename.toLowerCase();
+                    if (vid.is_json_map) groups[tag].json_maps.push(vid);
+                    else if (fn.endsWith('.txt')) groups[tag].reports.push(vid);
+                    else groups[tag].videos.push(vid);
+                });
+
+                let html = ''; 
+                Object.keys(groups).forEach(groupName => {
+                    const g = groups[groupName];
+                    html += `<div style="background: rgba(17, 24, 39, 0.4); padding: 12px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 4px;">`;
+                    html += `<div style="font-size:11.5px; color:#60a5fa; font-weight:700; margin-bottom: 8px;"><i class="fas fa-clock"></i> 批次中枢：${groupName}</div>`;
+                    html += `<div style="display:flex; flex-wrap:wrap; gap:16px; align-items:center;">`;
+                    
+                    // 🎬 视频流选择器 (时间-1 / 时间-2)
+                    if (g.videos.length > 0) {
+                        html += `<div style="display:flex; align-items:center; gap:4px;">`;
+                        html += `<span style="font-size:10.5px; color:var(--text-gray);"><i class="fas fa-video"></i> 视频选取:</span>`;
+                        html += `<select id="vid-sel-${groupName}" style="background:#000; color:#fff; border:1px solid #374151; font-size:11px; border-radius:4px; height:24px; padding:0 4px; outline:none;">`;
+                        g.videos.forEach(v => {
+                            html += `<option value="${v.rel_path}">${v.display_name}</option>`;
+                        });
+                        html += `</select>`;
+                        html += `<button onclick="openLocalApp($('#vid-sel-${groupName}').val())" style="padding: 2px 8px; font-size:11px; background:#2563eb; color:white; border-radius:4px; cursor:pointer; border:0; font-weight:bold;">本地点播</button>`;
+                        html += `</div>`;
+                    }
+
+                    // 📄 报告选择器 (时间-1 / 时间-2)
+                    if (g.reports.length > 0) {
+                        html += `<div style="display:flex; align-items:center; gap:4px;">`;
+                        html += `<span style="font-size:10.5px; color:var(--text-gray);"><i class="fas fa-file-alt"></i> 报告选取:</span>`;
+                        html += `<select id="rep-sel-${groupName}" style="background:#000; color:#fff; border:1px solid #374151; font-size:11px; border-radius:4px; height:24px; padding:0 4px; outline:none;">`;
+                        g.reports.forEach(r => {
+                            html += `<option value="${r.rel_path}">${r.display_name}</option>`;
+                        });
+                        html += `</select>`;
+                        html += `<button onclick="openLocalApp($('#rep-sel-${groupName}').val())" style="padding: 2px 8px; font-size:11px; background:#059669; color:white; border-radius:4px; cursor:pointer; border:0; font-weight:bold;">本地查阅</button>`;
+                        html += `</div>`;
+                    }
+
+                    // 🗺️ 地图特征图
+                    if (g.json_maps.length > 0) {
+                        g.json_maps.forEach((m, idx) => {
+                            html += `<button onclick="openOfflineMap('${m.url}')" style="padding: 2px 8px; font-size:11px; background:var(--primary-gradient); border:0; color:white; border-radius:4px; cursor:pointer; margin-left:auto;"><i class="fas fa-map-marked-alt"></i> 特征图 ${idx+1}</button>`;
+                        });
+                    }
+
+                    html += `</div></div>`;
+                });
+                $('#history-video-list').html(html); 
+            }); 
+        }
+
+        function openLocalApp(relPath) {
+            $.ajax({
+                url: '/api/sugarcane/open-local', method: 'POST',
+                contentType: 'application/json', data: JSON.stringify({ path: relPath }),
+                error: () => { alert("调用本地应用失败"); }
+            });
+        }
+
+        async function openOfflineMap(jsonUrl) {
+            try {
+                const res = await fetch(jsonUrl); offlineData = await res.json();
+                $('#mapModal').css('display', 'flex');
+                const side = Math.floor($('#modalCanvasBody').width() || 650);
+                offCanvas.width = side; offCanvas.height = side;
+                offX = 0; offY = 0; offZoom = 35.0;
+                if(offlineData.path && offlineData.path.length > 0) {
+                    let xs = offlineData.path.map(p => p[0]), ys = offlineData.path.map(p => p[1]);
+                    let midX = (Math.min(...xs) + Math.max(...xs)) / 2; let midY = (Math.min(...ys) + Math.max(...ys)) / 2;
+                    offX = -midX * offZoom; offY = midY * offZoom;
+                }
+                renderOfflineMap();
+            } catch(e) { alert("调阅离线空间地图特征失效"); }
+        }
+
+        function renderOfflineMap() {
+            const w = offCanvas.width, h = offCanvas.height; if(w === 0) return;
+            const ox = w / 2 + offX, oy = h / 2 + offY; offCtx.clearRect(0, 0, w, h);
+
+            offCtx.strokeStyle = "#111928"; offCtx.lineWidth = 1; offCtx.beginPath();
+            for (let x = ox % offZoom; x < w; x += offZoom) { offCtx.moveTo(x, 0); offCtx.lineTo(x, h); }
+            for (let y = oy % offZoom; y < h; y += offZoom) { offCtx.moveTo(0, y); offCtx.lineTo(w, y); }
+            offCtx.stroke();
+
+            const path = offlineData.path || [];
+            if(path.length > 1) {
+                offCtx.strokeStyle = "#60a5fa"; offCtx.lineWidth = 3; offCtx.beginPath();
+                for(let i=0; i<path.length; i++) {
+                    let px = ox + path[i][0] * offZoom, py = oy - path[i][1] * offZoom;
+                    if(i===0) offCtx.moveTo(px, py); else offCtx.lineTo(px, py);
+                }
+                offCtx.stroke();
+                offCtx.fillStyle = "#34d399"; offCtx.beginPath(); offCtx.arc(ox + path[0][0]*offZoom, oy - path[0][1]*offZoom, 6, 0, Math.PI*2); offCtx.fill();
+                offCtx.fillStyle = "#f87171"; offCtx.beginPath(); offCtx.arc(ox + path[path.length-1][0]*offZoom, oy - path[path.length-1][1]*offZoom, 6, 0, Math.PI*2); offCtx.fill();
+            }
+
+            (offlineData.markers || []).forEach(m => {
+                const mx = ox + m.x * offZoom, my = oy - m.y * offZoom;
+                offCtx.save(); offCtx.fillStyle = "#ef4444"; offCtx.strokeStyle = "#ffffff"; offCtx.lineWidth = 1.5;
+                offCtx.beginPath(); offCtx.arc(mx, my, 5, 0, Math.PI*2); offCtx.fill(); offCtx.stroke();
+                offCtx.fillStyle = "#9ca3af"; offCtx.font = "11px sans-serif"; offCtx.fillText(m.label, mx + 8, my + 4); offCtx.restore();
+            });
+        }
+
+        function closeMapModal() { $('#mapModal').hide(); }
+
+        function sendChat() {
+            const msg = $('#chat-input').val(); if(!msg) return;
+            $('#chat-content').append(`<div class="bubble me">${msg}</div>`).scrollTop($('#chat-content')[0].scrollHeight); $('#chat-input').val('');
+            $.ajax({ url: '/api/chat', method: 'POST', contentType: 'application/json', data: JSON.stringify({message: msg}), success: res => { $('#chat-content').append(`<div class="bubble ai">${res.result}</div>`).scrollTop($('#chat-content')[0].scrollHeight); }});
+        }
+
+        window.onload = () => {
+            refreshSavePath(); loadSoilChart(); loadHistoryVideos();
+            window.addEventListener('resize', () => { resizeCanvasToFit(); });
+            setTimeout(resizeCanvasToFit, 100);
+
+            canvas.addEventListener('mousedown', (e) => { isDragging = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY; });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+            window.addEventListener('mousemove', (e) => { if (!isDragging) return; offsetX = e.clientX - startX; offsetY = e.clientY - startY; drawLaserMap(latest_data); });
+            canvas.addEventListener('wheel', (e) => { e.preventDefault(); if (e.deltaY < 0) { zoomFactor *= 1.1; } else { zoomFactor *= 0.9; } zoomFactor = Math.max(15.0, Math.min(zoomFactor, 220.0)); drawLaserMap(latest_data); }, { passive: false });
+
+            const mBody = document.getElementById("modalCanvasBody");
+            mBody.addEventListener('mousedown', (e) => { isOffDragging = true; offStartX = e.clientX - offX; offStartY = e.clientY - offY; });
+            window.addEventListener('mouseup', () => { isOffDragging = false; });
+            mBody.addEventListener('mousemove', (e) => { if (!isOffDragging) return; offX = e.clientX - offStartX; offY = e.clientY - offStartY; renderOfflineMap(); });
+            mBody.addEventListener('wheel', (e) => {
+                e.preventDefault(); if (e.deltaY < 0) offZoom *= 1.15; else offZoom *= 0.85;
+                offZoom = Math.max(8.0, Math.min(offZoom, 500.0)); renderOfflineMap();
+            }, { passive: false });
+        };
+    </script>
+</body>
+</html>
